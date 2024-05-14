@@ -1,9 +1,14 @@
 clear all;
 clc;
 
+Q1_Commond = 82;
+Q2_Commond = -107;
+
+Q_NonMotion = [Q1_Commond; Q2_Commond]/180*pi;
+
 Q1_set = [-160 160;-160 160;-160 160];
 Q2_set = [-160 -30;-160 -30;-160 -30];
-Q3_set = [-20 220;-20 220;-20 220];
+Q3_set = [160 200;160 200;160 200];
 Q4_set = [-170 170;-170 170;-170 170];
 Q5_set = [-115 115; -115 115; -115 115];
 Q6_set = [-170 170;-170 170;-170 170];
@@ -17,19 +22,23 @@ Calculate_Interval = floor(Max_Interval_SampTime / Sampling_Time);
 Calculate_Num = floor(((Exciting_Time / Sampling_Time + 1) - Calculate_Init)/Calculate_Interval + 1);
 
 DOF = 6;
+DOF_Active = 4;
+DOF_Start = 3;
 
 Tf = Exciting_Time;
 wf = 2*pi/Tf;
 
-Population = 15;  
+Population = 6;  
 
-Iteration = 10;   
+Iteration = 2;   
 
 Num_Design_Variate_OneDof = 11;     
-Num_Design_Variate = DOF*Num_Design_Variate_OneDof;     
+Num_Design_Variate = DOF_Active*Num_Design_Variate_OneDof;     
 
-TYPE = 1;
+TYPE = 1;  
 UIO = [randperm(TYPE); randperm(TYPE); randperm(TYPE); randperm(TYPE); randperm(TYPE); randperm(TYPE)];
+
+Coefficient_ExTra_Best = zeros(DOF_Active,Num_Design_Variate_OneDof);
 
 profile clear;
 profile off;
@@ -46,21 +55,21 @@ for MU = 1:TYPE
     Coefficient_ExTra_Current = -3 + 6*rand(Population,Num_Design_Variate);
     
     for i = 1:Population
-        for Joint = 1:DOF
-            XI = Coefficient_ExTra_Current(i,(Num_Design_Variate_OneDof*(Joint-1)+1):Num_Design_Variate_OneDof*Joint);
+        for Joint = DOF_Start:DOF
+            XI = Coefficient_ExTra_Current(i,(Num_Design_Variate_OneDof*(Joint-DOF_Start)+1):Num_Design_Variate_OneDof*(Joint-DOF_Start+1));
             [XI] = Tradeoff_Modify( XI,wf,q_max(Joint),q_min(Joint),dq_max(Joint),ddq_max(Joint));
-            Coefficient_ExTra_Current(i,(Num_Design_Variate_OneDof*(Joint-1)+1):Num_Design_Variate_OneDof*Joint) = XI;
+            Coefficient_ExTra_Current(i,(Num_Design_Variate_OneDof*(Joint-DOF_Start)+1):Num_Design_Variate_OneDof*(Joint-DOF_Start+1)) = XI;
         end
     end
     
     for i = 1:Population
-        Value(i) = Objective_BattleMyself_FullModel( Coefficient_ExTra_Current(i,:),wf,Calculate_Num,Calculate_Interval,Calculate_Init,Sampling_Time,DOF,Num_Design_Variate_OneDof );
+        Value(i) = Objective_Function_PayLoad( Coefficient_ExTra_Current(i,:),DOF,Calculate_Num,Calculate_Interval,Calculate_Init,Sampling_Time,wf,Num_Design_Variate_OneDof,Q_NonMotion,DOF_Start,DOF_Active );
     end
     
+ 
     [Y_total_kbese_i(1), i_best] = min(Value);
     
     for k = 1:Iteration
-
         %knowledge transfer
         for j = 1:Num_Design_Variate
             Mean_Result(1,j) = sum(Coefficient_ExTra_Current(:,j))/Population;
@@ -72,16 +81,16 @@ for MU = 1:TYPE
         for i = 1:Population
             Coefficient_ExTra_Current_New(i,1:Num_Design_Variate) = Coefficient_ExTra_Current(i,1:Num_Design_Variate) + Difference_Mean_i;
             
-            for Joint = 1:DOF
-                XI = Coefficient_ExTra_Current_New(i,(Num_Design_Variate_OneDof*(Joint-1)+1):Num_Design_Variate_OneDof*Joint);
+            for Joint = DOF_Start:DOF
+                XI = Coefficient_ExTra_Current_New(i,(Num_Design_Variate_OneDof*(Joint-DOF_Start)+1):Num_Design_Variate_OneDof*(Joint-DOF_Start+1));
                 [XI] = Tradeoff_Modify( XI,wf,q_max(Joint),q_min(Joint),dq_max(Joint),ddq_max(Joint));
-                Coefficient_ExTra_Current_New(i,(Num_Design_Variate_OneDof*(Joint-1)+1):Num_Design_Variate_OneDof*Joint) = XI;
+                Coefficient_ExTra_Current_New(i,(Num_Design_Variate_OneDof*(Joint-DOF_Start)+1):Num_Design_Variate_OneDof*(Joint-DOF_Start+1)) = XI;
             end
         end
         
         %Optimization Selected
         for i = 1:Population
-            Value_new(i) = Objective_BattleMyself_FullModel( Coefficient_ExTra_Current_New(i,:),wf,Calculate_Num,Calculate_Interval,Calculate_Init,Sampling_Time,DOF,Num_Design_Variate_OneDof );
+            Value_new(i) = Objective_Function_PayLoad( Coefficient_ExTra_Current_New(i,:),DOF,Calculate_Num,Calculate_Interval,Calculate_Init,Sampling_Time,wf,Num_Design_Variate_OneDof,Q_NonMotion,DOF_Start,DOF_Active );
             
             if Value_new(i) < Value(i)
                 Coefficient_ExTra_Current(i,1:Num_Design_Variate) = Coefficient_ExTra_Current_New(i,1:Num_Design_Variate);
@@ -89,9 +98,7 @@ for MU = 1:TYPE
             end
         end
         
-        
         %learners increase their knowledge by interacting among themselves
-        
         for i = 1:Population
             Rand_Subject(1,1:Num_Design_Variate) = rand(1,Num_Design_Variate);
             if i == 1
@@ -112,13 +119,13 @@ for MU = 1:TYPE
                 Coefficient_ExTra_Current_New(i,1:Num_Design_Variate) = Coefficient_ExTra_Current(i,1:Num_Design_Variate) + Rand_Subject.*(Coefficient_ExTra_Current(h,1:Num_Design_Variate) - Coefficient_ExTra_Current(i,1:Num_Design_Variate));
             end
             
-            for Joint = 1:DOF
-                XI = Coefficient_ExTra_Current_New(i,(Num_Design_Variate_OneDof*(Joint-1)+1):Num_Design_Variate_OneDof*Joint);
+            for Joint = DOF_Start:DOF
+                XI = Coefficient_ExTra_Current_New(i,(Num_Design_Variate_OneDof*(Joint-DOF_Start)+1):Num_Design_Variate_OneDof*(Joint-DOF_Start+1));
                 [XI] = Tradeoff_Modify( XI,wf,q_max(Joint),q_min(Joint),dq_max(Joint),ddq_max(Joint));
-                Coefficient_ExTra_Current_New(i,(Num_Design_Variate_OneDof*(Joint-1)+1):Num_Design_Variate_OneDof*Joint) = XI;
+                Coefficient_ExTra_Current_New(i,(Num_Design_Variate_OneDof*(Joint-DOF_Start)+1):Num_Design_Variate_OneDof*(Joint-DOF_Start+1)) = XI;
             end
             
-            Value_new(i) = Objective_BattleMyself_FullModel( Coefficient_ExTra_Current_New(i,:),wf,Calculate_Num,Calculate_Interval,Calculate_Init,Sampling_Time,DOF,Num_Design_Variate_OneDof );
+            Value_new(i) = Objective_Function_PayLoad( Coefficient_ExTra_Current_New(i,:),DOF,Calculate_Num,Calculate_Interval,Calculate_Init,Sampling_Time,wf,Num_Design_Variate_OneDof,Q_NonMotion,DOF_Start,DOF_Active );
             
             if Value_new(i) < Value(i)
                 Coefficient_ExTra_Current(i,1:Num_Design_Variate) = Coefficient_ExTra_Current_New(i,1:Num_Design_Variate);
@@ -133,7 +140,11 @@ for MU = 1:TYPE
     
     Best_Sollution_Cycle(MU,1:Num_Design_Variate) = Coefficient_ExTra_Current(i_best,1:Num_Design_Variate);
     
-    Y_total_kbese_i(end)
+    for Joint = DOF_Start:DOF
+        Coefficient_ExTra(Joint-DOF_Start+1,1:Num_Design_Variate_OneDof,MU) = Best_Sollution_Cycle(MU,(Num_Design_Variate_OneDof*(Joint-DOF_Start)+1):Num_Design_Variate_OneDof*(Joint-DOF_Start+1));  
+    end
+    
+    Y_total_kbese_i_MU(MU) = Y_total_kbese_i(end)
     
 end
 
@@ -146,8 +157,3 @@ plot(X,Y_total_kbese_i,'d:b','linewidth',1.5);
 xlabel('Iteration');
 ylabel('Condition number');
 title('My Method');
-
-for Joint = 1:DOF
-    Coefficient_ExTra(Joint,1:Num_Design_Variate_OneDof) = Best_Sollution_Cycle(1,(Num_Design_Variate_OneDof*(Joint-1)+1):Num_Design_Variate_OneDof*Joint);  %×îÓÅ½â
-end
-
