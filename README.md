@@ -1,5 +1,7 @@
 # An Analytical Approach for Dealing with Explicit Physical Constraints in Excitation Optimization Problems of Dynamic Identification
 
+<img src="https://github.com/HuangShifengHUST/AnaAp.PhyConst.ExcitOptimi.DynIDen/blob/master/Images/paper_TRO.png">
+
 <img src="https://github.com/HuangShifengHUST/AnaAp.PhyConst.ExcitOptimi.DynIDen/blob/master/Images/Excitation_illustration.png">
 
 <img src="https://github.com/HuangShifengHUST/AnaAp.PhyConst.ExcitOptimi.DynIDen/blob/master/Images/Fourier_Excitation_Advantage.png">
