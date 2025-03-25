@@ -21,7 +21,7 @@ Qmin = min(q);
 dQmax = max(abs(dq));
 ddQmax = max(abs(ddq));
 
-%% ------------ 缩放------------------
+% ------------ 缩放-----------------
 
 % 速度缩放因子
 Gama_2 = dq_max/dQmax;
@@ -40,7 +40,7 @@ Gama = min([Gama_1,Gama_2,Gama_3]);
 % 对当前提供的傅里叶系数执行缩放操作
 Coefficient_ExTra = Coefficient_ExTra * Gama;
 
-%% ------------ 中心平移 -----------------------
+% ------------ 中心平移 ----------------------
 
 % 关节位置可行区间的中心点
 q_middle= (q_max + q_min)/2; 

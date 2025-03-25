@@ -122,7 +122,7 @@ for MU = 1:TYPE
         end
         
         
-        %% 学习者之间讨论交流来增加各自的知识
+        % 学习者之间讨论交流来增加各自的知识
         
         for i = 1:Population
             Rand_Subject(1,1:Num_Design_Variate) = rand(1,Num_Design_Variate);
